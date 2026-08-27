@@ -1,0 +1,19 @@
+# MLSentry Production Dependencies
+# Pinned at minor version per 07_dependency_lock.md
+# Install with: pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+fastapi~=0.110.0
+pydantic~=2.6.0
+pydantic-settings~=2.2.0
+uvicorn~=0.28.0
+sqlalchemy~=2.0.25
+alembic~=1.13.0
+psycopg2-binary~=2.9.0
+apscheduler~=3.10.0
+scipy~=1.12.0
+numpy~=1.26.0
+transformers~=4.38.0
+torch~=2.2.0
+requests~=2.31.0
+jinja2~=3.1.0
+mlflow-skinny~=2.11.0
+python-dotenv~=1.0.0
