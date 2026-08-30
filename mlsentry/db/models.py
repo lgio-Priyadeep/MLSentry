@@ -30,6 +30,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    JSON,
     Numeric,
     SmallInteger,
     String,
@@ -40,6 +41,19 @@ from sqlalchemy import (
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+# JSON type variant: PostgreSQL uses binary JSONB, SQLite (and other test backends) uses standard JSON
+JSON_TYPE = JSON(none_as_null=True).with_variant(JSONB(none_as_null=True), "postgresql")
+
+
+def enum_col(enum_cls: Any, name: str) -> SAEnum:
+    """Helper for standardizing SAEnum with value-based string serialization."""
+    return SAEnum(
+        enum_cls,
+        values_callable=lambda x: [e.value for e in x],
+        name=name,
+        create_type=True,
+    )
 
 from mlsentry.core.constants import (
     AlertSeverity,
@@ -101,7 +115,7 @@ class ModelRecord(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     version: Mapped[str] = mapped_column(String(20), nullable=False)
     status: Mapped[ModelStatus] = mapped_column(
-        SAEnum(ModelStatus, name="model_status_enum", create_type=True),
+        enum_col(ModelStatus, "model_status_enum"),
         nullable=False,
         server_default="warming_up",
     )
@@ -115,9 +129,7 @@ class ModelRecord(Base):
         String(500), nullable=True,
     )
     prediction_type: Mapped[PredictionType] = mapped_column(
-        SAEnum(
-            PredictionType, name="prediction_type_enum", create_type=True,
-        ),
+        enum_col(PredictionType, "prediction_type_enum"),
         nullable=False,
     )
     sample_count: Mapped[int] = mapped_column(
@@ -203,7 +215,7 @@ class ModelSchemaRecord(Base):
     )
     feature_name: Mapped[str] = mapped_column(String(100), nullable=False)
     dtype: Mapped[FeatureDtype] = mapped_column(
-        SAEnum(FeatureDtype, name="feature_dtype_enum", create_type=True),
+        enum_col(FeatureDtype, "feature_dtype_enum"),
         nullable=False,
     )
     required: Mapped[bool] = mapped_column(
@@ -219,7 +231,7 @@ class ModelSchemaRecord(Base):
         SmallInteger, nullable=True,
     )
     allowed_values: Mapped[list[str] | None] = mapped_column(
-        JSONB, nullable=True,
+        JSON_TYPE, nullable=True,
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -272,7 +284,7 @@ class PredictionRecord(Base):
         nullable=False,
     )
     model_version: Mapped[str] = mapped_column(String(20), nullable=False)
-    features_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    features_json: Mapped[dict] = mapped_column(JSON_TYPE, nullable=False)
     prediction_label: Mapped[str] = mapped_column(
         String(50), nullable=False,
     )
@@ -391,17 +403,17 @@ class ReferenceStatRecord(Base):
     )
     feature_name: Mapped[str] = mapped_column(String(100), nullable=False)
     stat_type: Mapped[StatType] = mapped_column(
-        SAEnum(StatType, name="stat_type_enum", create_type=True),
+        enum_col(StatType, "stat_type_enum"),
         nullable=False,
     )
     stat_value: Mapped[float | None] = mapped_column(
         Numeric(15, 6), nullable=True,
     )
     frequency_map: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True,
+        JSON_TYPE, nullable=True,
     )
     histogram_data: Mapped[list[Any] | None] = mapped_column(
-        JSONB, nullable=True,
+        JSON_TYPE, nullable=True,
     )
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False)
     computed_at: Mapped[datetime] = mapped_column(
@@ -474,7 +486,7 @@ class DriftReportRecord(Base):
     )
     sample_count: Mapped[int] = mapped_column(Integer, nullable=False)
     method: Mapped[DriftMethod] = mapped_column(
-        SAEnum(DriftMethod, name="drift_method_enum", create_type=True),
+        enum_col(DriftMethod, "drift_method_enum"),
         nullable=False,
     )
     score: Mapped[float] = mapped_column(Numeric(10, 6), nullable=False)
@@ -482,7 +494,7 @@ class DriftReportRecord(Base):
         Numeric(10, 8), nullable=True,
     )
     feature_type: Mapped[FeatureKind] = mapped_column(
-        SAEnum(FeatureKind, name="feature_type_enum", create_type=True),
+        enum_col(FeatureKind, "feature_type_enum"),
         nullable=False,
     )
     psi: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -544,11 +556,7 @@ class PerformanceLogRecord(Base):
         DateTime(timezone=True), nullable=False,
     )
     metric: Mapped[PerformanceMetric] = mapped_column(
-        SAEnum(
-            PerformanceMetric,
-            name="performance_metric_enum",
-            create_type=True,
-        ),
+        enum_col(PerformanceMetric, "performance_metric_enum"),
         nullable=False,
     )
     value: Mapped[float] = mapped_column(Numeric(5, 4), nullable=False)
@@ -612,13 +620,11 @@ class AlertRecord(Base):
         nullable=False,
     )
     type: Mapped[AlertType] = mapped_column(
-        SAEnum(AlertType, name="alert_type_enum", create_type=True),
+        enum_col(AlertType, "alert_type_enum"),
         nullable=False,
     )
     severity: Mapped[AlertSeverity] = mapped_column(
-        SAEnum(
-            AlertSeverity, name="alert_severity_enum", create_type=True,
-        ),
+        enum_col(AlertSeverity, "alert_severity_enum"),
         nullable=False,
     )
     feature_name: Mapped[str | None] = mapped_column(
@@ -626,7 +632,7 @@ class AlertRecord(Base):
     )
     message: Mapped[str] = mapped_column(String(1000), nullable=False)
     context_json: Mapped[dict | None] = mapped_column(
-        JSONB, nullable=True,
+        JSON_TYPE, nullable=True,
     )
     triggered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
@@ -687,13 +693,11 @@ class TriggerEventRecord(Base):
         nullable=False,
     )
     status: Mapped[TriggerStatus] = mapped_column(
-        SAEnum(
-            TriggerStatus, name="trigger_status_enum", create_type=True,
-        ),
+        enum_col(TriggerStatus, "trigger_status_enum"),
         nullable=False,
     )
     drift_report_summary: Mapped[dict] = mapped_column(
-        JSONB, nullable=False,
+        JSON_TYPE, nullable=False,
     )
     github_response_code: Mapped[int | None] = mapped_column(
         SmallInteger, nullable=True,
@@ -757,7 +761,7 @@ class LogClassificationRecord(Base):
     )
     log_line: Mapped[str] = mapped_column(String(2000), nullable=False)
     label: Mapped[LogLabel] = mapped_column(
-        SAEnum(LogLabel, name="log_label_enum", create_type=True),
+        enum_col(LogLabel, "log_label_enum"),
         nullable=False,
     )
     confidence: Mapped[float] = mapped_column(

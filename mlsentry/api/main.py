@@ -187,6 +187,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     auth_dep = get_api_key_dependency(app_settings.mlsentry_api_key)
     api_v1_router = APIRouter(prefix="/v1", dependencies=[Depends(auth_dep)])
 
+    # Mount domain route modules
+    from mlsentry.api.routes.models import router as models_router
+
+    api_v1_router.include_router(models_router)
+
     # Attach router to application
     app.include_router(api_v1_router)
 
