@@ -190,11 +190,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Mount domain route modules
     from mlsentry.api.routes.logs import router as logs_router
     from mlsentry.api.routes.models import router as models_router
+    from mlsentry.api.routes.monitoring import router as monitoring_router
     from mlsentry.api.routes.predictions import router as predictions_router
 
     api_v1_router.include_router(models_router)
     api_v1_router.include_router(predictions_router)
     api_v1_router.include_router(logs_router)
+    api_v1_router.include_router(monitoring_router)
 
     # Attach router to application
     app.include_router(api_v1_router)
