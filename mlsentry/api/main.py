@@ -193,12 +193,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     from mlsentry.api.routes.models import router as models_router
     from mlsentry.api.routes.monitoring import router as monitoring_router
     from mlsentry.api.routes.predictions import router as predictions_router
+    from mlsentry.api.routes.webhooks import router as webhooks_router
 
     api_v1_router.include_router(models_router)
     api_v1_router.include_router(predictions_router)
     api_v1_router.include_router(logs_router)
     api_v1_router.include_router(monitoring_router)
     api_v1_router.include_router(alerts_router)
+    api_v1_router.include_router(webhooks_router)
 
     # Attach router to application
     app.include_router(api_v1_router)
