@@ -36,6 +36,7 @@ from mlsentry.core.anomaly.log_classifier import DistilBERTUnavailableError, Log
 from mlsentry.core.constants import SCHEDULER_HEARTBEAT_STALENESS_MINUTES
 from mlsentry.db.session import dispose_engine, get_session, init_engine
 from mlsentry.integrations.mlflow_client import MLflowClient
+from mlsentry.scheduler.jobs import start_scheduler, stop_scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +95,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     if getattr(app.state, "mlflow_client", None) is None:
         app.state.mlflow_client = MLflowClient.from_settings(settings)
 
+    # 5. Start background APScheduler worker
+    logger.info("Starting APScheduler background monitoring worker...")
+    start_scheduler(settings)
+    logger.info("APScheduler background monitoring worker started.")
+
     # Initialize heartbeat for local startup readiness
     set_scheduler_heartbeat(datetime.now(timezone.utc))
     logger.info("MLSentry startup sequence completed.")
@@ -102,6 +108,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
     # Shutdown sequence
     logger.info("Executing graceful shutdown...")
+    stop_scheduler()
+    logger.info("APScheduler worker stopped.")
     dispose_engine()
     logger.info("Database connection pool disposed.")
 

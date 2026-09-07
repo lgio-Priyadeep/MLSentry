@@ -19,7 +19,7 @@ FK summary:
     RESTRICT on predictions.pred_id (1): ground_truth
 """
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from sqlalchemy import (
@@ -36,6 +36,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     desc,
+    func,
     text,
 )
 from sqlalchemy import Enum as SAEnum
@@ -138,7 +139,8 @@ class ModelRecord(Base):
     registered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
     deprecated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
@@ -236,7 +238,8 @@ class ModelSchemaRecord(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     model: Mapped["ModelRecord"] = relationship(back_populates="schemas")
@@ -300,7 +303,8 @@ class PredictionRecord(Base):
     logged_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     model: Mapped["ModelRecord"] = relationship(
@@ -356,7 +360,8 @@ class GroundTruthRecord(Base):
     received_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     prediction: Mapped["PredictionRecord"] = relationship(
@@ -419,7 +424,8 @@ class ReferenceStatRecord(Base):
     computed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     model: Mapped["ModelRecord"] = relationship(
@@ -501,7 +507,8 @@ class DriftReportRecord(Base):
     computed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     model: Mapped["ModelRecord"] = relationship(
@@ -568,7 +575,8 @@ class PerformanceLogRecord(Base):
     computed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     model: Mapped["ModelRecord"] = relationship(
@@ -637,7 +645,8 @@ class AlertRecord(Base):
     triggered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
     resolved: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false"),
@@ -711,7 +720,8 @@ class TriggerEventRecord(Base):
     triggered_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
     next_allowed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False,
@@ -776,7 +786,8 @@ class LogClassificationRecord(Base):
     classified_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
-        server_default=text("NOW()"),
+        default=lambda: datetime.now(timezone.utc),
+        server_default=func.now(),
     )
 
     model: Mapped["ModelRecord"] = relationship(
