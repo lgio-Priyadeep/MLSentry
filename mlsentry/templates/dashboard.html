@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLSentry — Production ML Observability Dashboard</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+  <script src="/static/js/chart.min.js"></script>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header & Navigation -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">S</div>
+        <div>
+          <h1 class="brand-title">MLSentry Observability</h1>
+          <p class="brand-subtitle">Real-time ML Model Drift, Performance & Anomaly Monitoring</p>
+        </div>
+      </div>
+      <div class="controls">
+        <form method="GET" action="/dashboard">
+          <select name="model_id" class="filter-select" onchange="this.form.submit()">
+            <option value="">All Monitored Models</option>
+            {% for m in all_models %}
+              <option value="{{ m.model_id }}" {% if selected_model_id == m.model_id|string %}selected{% endif %}>
+                {{ m.name }} (v{{ m.version }})
+              </option>
+            {% endfor %}
+          </select>
+        </form>
+        <a href="/dashboard{% if selected_model_id %}?model_id={{ selected_model_id }}{% endif %}" class="refresh-btn">⟳ Refresh</a>
+      </div>
+    </header>
+
+    <!-- SECTION 1: Model Summary Table -->
+    <section class="card">
+      <h2 class="section-title">1. Model Summary</h2>
+      {% if models %}
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Model Name</th>
+                <th>Version</th>
+                <th>Prediction Type</th>
+                <th>Status</th>
+                <th>Sample Count</th>
+                <th>Baseline F1 / AUC</th>
+                <th>Last Monitoring Run</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for m in models %}
+                <tr>
+                  <td><strong>{{ m.name }}</strong></td>
+                  <td>v{{ m.version }}</td>
+                  <td>{{ m.prediction_type }}</td>
+                  <td>
+                    {% if m.status == 'active' %}
+                      <span class="badge badge-ok">Active</span>
+                    {% elif m.status == 'warming_up' %}
+                      <span class="badge badge-warming">Warming Up ({{ m.sample_count }}/{{ m.warm_up_threshold }})</span>
+                    {% else %}
+                      <span class="badge badge-deprecated">{{ m.status }}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ m.sample_count }}</td>
+                  <td>
+                    {{ "%.3f"|format(m.baseline_f1) if m.baseline_f1 is not none else "N/A" }} /
+                    {{ "%.3f"|format(m.baseline_auc) if m.baseline_auc is not none else "N/A" }}
+                  </td>
+                  <td>{{ m.last_run_at if m.last_run_at else "Pending scheduled cycle" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">No models registered yet. Register a model via POST /v1/models/register to begin monitoring.</div>
+      {% endif %}
+    </section>
+
+    <!-- SECTION 2: Drift & Alert Status -->
+    <section class="card">
+      <h2 class="section-title">2. Drift & Alert Status</h2>
+      
+      <div class="stats-grid">
+        <div class="stat-box">
+          <div class="stat-label">Active Alerts</div>
+          <div class="stat-value" style="color: {% if total_critical_alerts > 0 %}var(--status-critical){% elif total_warning_alerts > 0 %}var(--status-warning){% else %}var(--status-ok){% endif %}">
+            {{ active_alerts|length }}
+          </div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Critical Severity</div>
+          <div class="stat-value" style="color: var(--status-critical)">{{ total_critical_alerts }}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Warning Severity</div>
+          <div class="stat-value" style="color: var(--status-warning)">{{ total_warning_alerts }}</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-label">Features Monitored</div>
+          <div class="stat-value">{{ drift_reports|length }}</div>
+        </div>
+      </div>
+
+      <h3 style="font-size: 14px; font-weight: 600; margin: 16px 0 8px 0; color: var(--text-secondary);">Latest Feature Drift Reports</h3>
+      {% if drift_reports %}
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Model</th>
+                <th>Feature Name</th>
+                <th>Metric Method</th>
+                <th>Drift Score</th>
+                <th>Warning / Critical Threshold</th>
+                <th>Severity</th>
+                <th>Window Bucket</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for d in drift_reports %}
+                <tr>
+                  <td>{{ d.model_name }}</td>
+                  <td><strong>{{ d.feature_name }}</strong></td>
+                  <td>{{ d.drift_method }}</td>
+                  <td>{{ "%.4f"|format(d.drift_score) }}</td>
+                  <td>{{ d.threshold_summary }}</td>
+                  <td>
+                    {% if d.severity == 'CRITICAL' %}
+                      <span class="badge badge-critical">CRITICAL</span>
+                    {% elif d.severity == 'WARNING' %}
+                      <span class="badge badge-warning">WARNING</span>
+                    {% else %}
+                      <span class="badge badge-ok">OK (INFO)</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ d.window_bucket }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state">No drift reports generated yet for the current window.</div>
+      {% endif %}
+
+      <h3 style="font-size: 14px; font-weight: 600; margin: 20px 0 8px 0; color: var(--text-secondary);">Unresolved System Alerts</h3>
+      {% if active_alerts %}
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Severity</th>
+                <th>Type</th>
+                <th>Model</th>
+                <th>Feature</th>
+                <th>Message</th>
+                <th>Triggered At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in active_alerts %}
+                <tr>
+                  <td>
+                    {% if a.severity == 'CRITICAL' %}
+                      <span class="badge badge-critical">CRITICAL</span>
+                    {% elif a.severity == 'WARNING' %}
+                      <span class="badge badge-warning">WARNING</span>
+                    {% else %}
+                      <span class="badge badge-info">INFO</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ a.alert_type }}</td>
+                  <td>{{ a.model_name }}</td>
+                  <td>{{ a.feature_name if a.feature_name else "—" }}</td>
+                  <td>{{ a.message }}</td>
+                  <td>{{ a.triggered_at }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="empty-state" style="padding: 16px; color: var(--status-ok);">✓ All systems nominal — zero active unresolved alerts.</div>
+      {% endif %}
+    </section>
+
+    <!-- SECTION 3: Performance Trends -->
+    <section class="card">
+      <h2 class="section-title">3. Performance Trends & Retraining Status</h2>
+      
+      {% if perf_chart_data and perf_chart_data.labels|length > 0 %}
+        <div class="chart-wrapper">
+          <canvas id="perfChart"></canvas>
+        </div>
+      {% else %}
+        <div class="empty-state">Insufficient ground truth pairs (&lt; 50 matched) to render 5-window performance trends.</div>
+      {% endif %}
+
+      <div class="retrain-banner">
+        <div class="retrain-status">
+          <span><strong>Retraining Cooldown Status:</strong></span>
+          {% if retraining_status == 'cooling_down' %}
+            <span class="badge badge-warning">Cooling Down (Expires: {{ next_allowed_retrain }})</span>
+          {% elif retraining_status == 'pending' %}
+            <span class="badge badge-critical">Pending Trigger (CRITICAL Drift + Perf Delta)</span>
+          {% else %}
+            <span class="badge badge-ok">Ready (No active cooldown)</span>
+          {% endif %}
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Trigger policy: PSI ≥ 0.25 AND F1Δ &lt; -0.15 (6-hour cooldown)
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  {% if perf_chart_data and perf_chart_data.labels|length > 0 %}
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const ctx = document.getElementById('perfChart');
+      if (ctx) {
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: {{ perf_chart_data.labels | tojson }},
+            datasets: [
+              {
+                label: 'F1 Delta (Current - Baseline)',
+                data: {{ perf_chart_data.f1_deltas | tojson }},
+                borderColor: '#38bdf8',
+                backgroundColor: '#38bdf8',
+                borderWidth: 2
+              },
+              {
+                label: 'AUC Delta (Current - Baseline)',
+                data: {{ perf_chart_data.auc_deltas | tojson }},
+                borderColor: '#818cf8',
+                backgroundColor: '#818cf8',
+                borderWidth: 2
+              }
+            ]
+          },
+          options: {
+            maintainAspectRatio: false
+          }
+        });
+      }
+    });
+  </script>
+  {% endif %}
+</body>
+</html>

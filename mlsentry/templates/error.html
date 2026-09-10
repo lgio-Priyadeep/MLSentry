@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MLSentry — Dashboard Error</title>
+  <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
+<body>
+  <div class="container" style="max-width: 600px; margin-top: 60px;">
+    <div class="card" style="text-align: center; padding: 40px 24px;">
+      <div style="font-size: 40px; margin-bottom: 12px; color: var(--status-critical);">⚠</div>
+      <h1 style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">Dashboard Render Error</h1>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+        {{ error_message if error_message else "An unexpected database or rendering error occurred." }}
+      </p>
+      <a href="/dashboard" class="refresh-btn" style="display: inline-block;">Return to Dashboard</a>
+    </div>
+  </div>
+</body>
+</html>

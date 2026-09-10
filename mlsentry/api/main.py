@@ -210,8 +210,19 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     api_v1_router.include_router(alerts_router)
     api_v1_router.include_router(webhooks_router)
 
-    # Attach router to application
+    # Attach authenticated router to application
     app.include_router(api_v1_router)
+
+    # Mount unauthenticated dashboard router and offline static assets
+    from mlsentry.api.routes.dashboard import router as dashboard_router
+    from fastapi.staticfiles import StaticFiles
+    import os
+
+    static_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static")
+    if os.path.isdir(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    app.include_router(dashboard_router)
 
     return app
 
