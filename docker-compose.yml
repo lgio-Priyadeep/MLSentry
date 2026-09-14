@@ -1,0 +1,54 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: mlsentry_db
+    restart: on-failure:3
+    environment:
+      POSTGRES_USER: mlsentry
+      POSTGRES_PASSWORD: mlsentry_password
+      POSTGRES_DB: mlsentry
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlsentry -d mlsentry"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mlsentry_app
+    restart: on-failure:3
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://mlsentry:mlsentry_password@db:5432/mlsentry
+      MLSENTRY_API_KEY: mlsentry_secret_key_v1
+      LOG_ANOMALY_CONFIDENCE_THRESHOLD: "0.85"
+      MONITORING_INTERVAL_MINUTES: "15"
+      WARM_UP_THRESHOLD: "30"
+      GROUND_TRUTH_CUTOFF_HOURS: "72"
+      GITHUB_TOKEN: ""
+      GITHUB_REPO_OWNER: ""
+      GITHUB_REPO_NAME: ""
+      GITHUB_WORKFLOW_ID: ""
+      MLFLOW_TRACKING_URI: ""
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
+
+volumes:
+  pgdata:
+    driver: local

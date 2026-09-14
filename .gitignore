@@ -1,7 +1,5 @@
-                                                                                                                                    
-# ==============================================================================                                                    
-# MLSentry - .gitignore                                                                                                             
-# ==============================================================================                                                    
+# This is a template gitignore I use in every project. 
+# Sublte reminder to double-check
                                                                                                                                     
 # --- Environments & Secrets ---                                                                                                    
 .env                                                                                                                                
