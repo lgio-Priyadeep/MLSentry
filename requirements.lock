@@ -26,7 +26,7 @@ mlflow-skinny==2.11.1
 mpmath==1.3.0
 networkx==3.2.1
 numpy==1.26.4
-packaging==24.0
+packaging==23.2
 pluggy==1.4.0
 psycopg2-binary==2.9.9
 pydantic==2.6.4

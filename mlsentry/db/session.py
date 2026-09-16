@@ -10,8 +10,10 @@ Lifecycle:
     - dispose_engine() called during graceful shutdown.
 """
 from collections.abc import Generator
+from typing import Any
 
 from sqlalchemy import Engine, create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session, sessionmaker
 
 from mlsentry.core.constants import (
@@ -46,14 +48,21 @@ def init_engine(database_url: str) -> Engine:
         sqlalchemy.exc.ArgumentError: If database_url is malformed.
     """
     global engine
-    engine = create_engine(
-        database_url,
-        pool_size=DB_POOL_SIZE,
-        max_overflow=DB_MAX_OVERFLOW,
-        pool_timeout=DB_POOL_TIMEOUT,
-        pool_recycle=DB_POOL_RECYCLE,
-        pool_pre_ping=True,
-    )
+    url = make_url(database_url)
+    if url.get_backend_name() == "sqlite":
+        engine_kwargs: dict[str, Any] = {"pool_pre_ping": True}
+        if ":memory:" in database_url:
+            engine_kwargs["connect_args"] = {"check_same_thread": False}
+        engine = create_engine(database_url, **engine_kwargs)
+    else:
+        engine = create_engine(
+            database_url,
+            pool_size=DB_POOL_SIZE,
+            max_overflow=DB_MAX_OVERFLOW,
+            pool_timeout=DB_POOL_TIMEOUT,
+            pool_recycle=DB_POOL_RECYCLE,
+            pool_pre_ping=True,
+        )
     SessionLocal.configure(bind=engine)
     return engine
 
